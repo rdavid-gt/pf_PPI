@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0" >
                         <li class="nav-item"><a class="nav-link active" aria-current="page">Inicio</a></li>
-                        <li class="nav-item"><a class="nav-link" href="../usuario.html">Mi cuenta</a></li>
+                        <li class="nav-item"><a class="nav-link" href="../iniciar_sesion.html">Mi cuenta</a></li>
                     </ul>
                     <form class="d-flex" action="../carrito.html">
                         <button class="btn btn-outline-dark" type="submit">
@@ -324,9 +324,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
                                 <img src="../imagenes/prueba.jpg" id="imagenModal" class="img-fluid rounded" alt="Portada">
                             </div>
                             <div class="col-md-6">
+                                <h5 class="modal-title" id="tituloProducto">Mario Kart World</h5>
                                 <h4 id="precioModal">$80.00</h4>
                                 <p id="descripcionModal">
-                                    Descripción: Carreras emocionantes con personajes de Nintendo...
+                                    <strong>Descripción</strong> Carreras emocionantes con personajes de Nintendo...
                                 </p>
                                 <p><strong>Categoría:</strong> Carreras</p>
                                 <p><strong>Cantidad en almacen:</strong> #</p>
