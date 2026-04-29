@@ -6,18 +6,25 @@ $user = 'usuario';
 $pass = '12345';
 $db = 'proyectoFinal';
 
+session_start();
+
 // Conexión (con manejo básico de error)
 $mysqli = new mysqli($host, $user, $pass, $db);
 if ($mysqli->connect_error) die("Conexión fallida: " . $mysqli->connect_error);
 
-$sql = "SELECT id, nombre, descripcion, f_public, cantidad, compania, plataforma, precio, imagen FROM producto ORDER BY id ASC";
-$resultado = $mysqli->query($sql);
+$sql = "SELECT P.id, P.nombre, P.descripcion, P.f_public, P.cantidad, P.compania, P.plataforma, P.precio, P.imagen, CP.cantidad as CantCarrito FROM producto P, carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito AND P.id = CP.idProducto ORDER BY P.id ASC;";
+$resultado = $mysqli->execute_query($sql, [$_SESSION['id']]);
 $productos = [];
 if ($resultado && $resultado->num_rows > 0) {
     while ($row = $resultado->fetch_assoc()) {
         $productos[] = $row;
     }
 }
+
+$query = "SELECT SUM(cantidad) as Cuenta FROM carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito;";
+$prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
+$prod_carrito = $prod_carrito->fetch_assoc();
+$prod_carrito = $prod_carrito['Cuenta'];
 
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
@@ -38,40 +45,45 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $mysqli->close();
     exit; // Detener ejecución para no enviar HTML
 }
-session_start();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Leer binario y preparar inserción
 
-    $res_stock = $mysqli->execute_query("SELECT cantidad FROM producto WHERE id = ?", [$_POST['id_prod']]);
-    $item = $res_stock->fetch_assoc();
+    if($_SERVER['action'] != 'delete'){
+        $res_stock = $mysqli->execute_query("SELECT cantidad FROM producto WHERE id = ?", [$_POST['id_prod']]);
+        $item = $res_stock->fetch_assoc();
 
-    if ($item && $item['cantidad'] >= $_POST['cant'] && $item['cantidad'] > 0) {
+        if ($item && $item['cantidad'] >= $_POST['cant'] && $item['cantidad'] > 0) {
+            $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
+            $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
+            $id_carrito = $id_carrito->fetch_assoc();
+
+            $query = "UPDATE carrito_productos SET cantidad = ? WHERE idCarrito = ? AND idProducto = ?";
+            $mysqli->execute_query($query, [$_POST['cant'],$id_carrito['id'],$_POST['id_prod']]);
+
+            header("Location: carrito.php?msg=success-mc");
+            exit();
+        } else {
+            header("Location: carrito.php?msg=error_stock");
+            exit();
+        }
+    }else{
         $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
         $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
         $id_carrito = $id_carrito->fetch_assoc();
 
-        $query = "INSERT INTO carrito_productos (idCarrito, idProducto, cantidad) VALUES (?, ?, ?)";
-        $mysqli->execute_query($query, [$id_carrito['id'], $_POST['id_prod'], $_POST['cant']]);
+        $query = "DELETE FROM carrito_productos WHERE idCarrito = ? AND idProducto = ?";
+        $id_carrito = $mysqli->execute_query($query, [$_SESSION['id'],$_POST['id_p']]);
+        $id_carrito = $id_carrito->fetch_assoc();
 
-        $query = "UPDATE producto SET cantidad = cantidad - ? WHERE id = ?";
-        $mysqli->execute_query($query, [$_POST['cant'], $_POST['id_prod']]);
-
-        header("Location: inicio.php?msg=success");
-        exit();
-    } else {
-        header("Location: inicio.php?msg=error_stock");
+        header("Location: carrito.php?msg=success-mc");
         exit();
     }
 }
 
-$query = "SELECT SUM(cantidad) as Cuenta FROM carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito;";
-$prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
-$prod_carrito = $prod_carrito->fetch_assoc();
-$prod_carrito = $prod_carrito['Cuenta'];
-
 $mysqli->close();
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -92,12 +104,12 @@ $mysqli->close();
 
 <body>
     <!-- Navigation-->
-    <nav class="navbar navbar-expand-lg navbar-light bg-secondary fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
         <div class="container px-4 px-lg-5">
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link active" aria-current="page">Inicio</a></li>
+                    <li class="nav-item"><a class="nav-link" href="inicio.php">Inicio</a></li>
                     <?php if (isset($_SESSION["id"])): ?>
                         <li class="nav-item"><a class="nav-link" href="mi_cuenta.php">Mi cuenta</a></li>
                     <?php else: ?>
@@ -111,7 +123,7 @@ $mysqli->close();
                             Cerrar Sesión
                         </button>
                     </form>
-                    <form class="d-flex" action="carrito.php">
+                    <form class="d-flex" action="../carrito.html">
                         <button class="btn btn-outline-dark mb-1" type="submit">
                             <i class="bi-cart-fill me-1"></i>
                             Carrito
@@ -126,9 +138,9 @@ $mysqli->close();
     <header class="bg-dark py-5">
         <div class="container px-4 px-lg-5 my-5">
             <div class="text-center text-white">
-                <h1 class="display-4 fw-bolder">Tienda de videojuegos</h1>
-                <?php if (!isset($_SESSION["id"])):  ?>
-                    <p class="lead fw-normal text-white-50 mb-0">Para poder comprar es necesario iniciar sesión</p>
+                <h1 class="display-4 fw-bolder">Tu carrito</h1>
+                <?php if (isset($_SESSION["id"])):  ?>
+                    <p class="lead fw-normal text-white-50 mb-0">Contiene <?php echo $prod_carrito ?> productos</p>
                 <?php endif; ?>
             </div>
         </div>
@@ -141,27 +153,35 @@ $mysqli->close();
             </div>
             <div class="row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-center">
                 <?php if (empty($productos)): ?>
-                    <p><img src="../imagenes/no_products.avif" alt="No hay productos registrados"></p>
+                    <p><img src="../imagenes/carrito_vacio.png" alt="No hay productos en el carrito"></p>
                 <?php else: ?>
                     <?php foreach ($productos as $producto): ?>
                         <div class="col mb-5">
                             <div class="card h-100" data-bs-toggle="modal" data-bs-target="#modalProducto<?= $producto['id'] ?>">
                                 <!-- Product image-->
-                                <img class="card-img-top" src="?id=<?= $producto['id'] ?>" alt="<?= htmlspecialchars($producto['nombre']) ?>">
+                                <img class="card-img-top" src="?id=<?= $producto['id'] ?>" alt="<?= htmlspecialchars($producto['nombre']) ?>" />
                                 <!-- Product details-->
                                 <div class="card-body p-4">
                                     <div class="text-center">
                                         <!-- Product name-->
                                         <h5 class="fw-bolder"><?= htmlspecialchars($producto['nombre']) ?></h5>
                                         <!-- Product price-->
-                                        $<?= htmlspecialchars($producto['precio']) ?><br>
+                                        Precio unitario: $<?= htmlspecialchars($producto['precio']) ?><br>
                                         <?= htmlspecialchars($producto['compania']) ?><br>
                                         <?= htmlspecialchars($producto['plataforma']) ?><br>
+                                        Cantidad en carrito: <?= htmlspecialchars($producto['CantCarrito']) ?><br>
+                                        Precio total: $<?= htmlspecialchars($producto['precio'] * $producto['CantCarrito']) ?>.00<br>
                                     </div>
                                 </div>
                                 <!-- Product actions-->
                                 <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
-                                    <div class="text-center"><a class="btn btn-outline-dark mt-auto">Descripcion</a></div>
+                                    <div class="text-center">
+                                        <a class="btn btn-outline-dark mt-auto my-1">Modificar</a>
+                                        <form enctype="multipart/form-data" method="post">
+                                            <input type="hidden" name="id_p" value="<?php echo $producto['id']; ?>">
+                                            <button class="btn btn-outline-dark mt-auto" name="action" value="delete" type="submit">Eliminar producto(s)</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -193,9 +213,9 @@ $mysqli->close();
                                         <?php if (isset($_SESSION["id"])):  ?>
                                             <form enctype="multipart/form-data" method="post">
                                                 <input type="hidden" name="id_prod" value="<?php echo $producto['id']; ?>">
-                                                <label for="cant">Cantidad a agregar al carrito: </label>
+                                                <label for="cant">Nueva cantidad en carrito: </label>
                                                 <input style="width: 50px;" type="number" name="cant" id="cant" min="1" max="<?php echo $producto['cantidad']; ?>">
-                                                <button type="submit" class="btn btn-primary">Añadir al carrito</button>
+                                                <button type="submit" class="btn btn-primary">Modificar carrito</button>
                                             </form>
                                         <?php endif; ?>
                                     </div>

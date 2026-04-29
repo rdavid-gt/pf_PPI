@@ -3,7 +3,7 @@
 $host = 'db';
 $user = 'usuario';
 $pass = '12345';
-$db = 'practica10';
+$db = 'proyectoFinal';
 
 // Conexión (con manejo básico de error)
 $mysqli = new mysqli($host, $user, $pass, $db);
@@ -12,14 +12,29 @@ if ($mysqli->connect_error) die("Conexión fallida: " . $mysqli->connect_error);
 // Mensaje para mostrar al usuario
 $mensaje = '';
 
-$title = $author = "";
+// Variables
+// Usuario
+$nombre = $apellidos = $email = $password = $tarjeta = $nac = "";
+
+// Domicilio
+$calle = $colonia = $next = $nint = $pc = "";
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $title = clean($_POST["titulo"]);
-    $author = clean($_POST["autor"]);
+    $nombre = clean($_POST["nombre"]);
+    $apellidos = clean($_POST["apellidos"]);
+    $email = clean($_POST["email"]);
+    $password = clean($_POST["contra"]);
+    $password = password_hash($password, PASSWORD_DEFAULT);
+    $tarjeta = clean($_POST["tarjeta"]);
+    $nac = clean($_POST["nac"]);
+    $calle = clean($_POST["calle"]);
+    $colonia = clean($_POST["colonia"]);
+    $next = clean($_POST["next"]);
+    $nint = clean($_POST["nint"]);
+    $pc = clean($_POST["cp"]);
 }
 
-function clean($data)
-{
+function clean($data){
     $data = trim($data);
     $data = stripcslashes($data);
     $data = htmlspecialchars($data);
@@ -27,40 +42,40 @@ function clean($data)
 }
 
 // Procesar formulario
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
-    $file = $_FILES['imagen'];
-
-    // Validar errores de subida
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        $mensaje = "Error al subir el archivo (código: {$file['error']})";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Leer binario y preparar inserción
+    $stmt = $mysqli->prepare("INSERT INTO usuario (nombre, apellido, password, email, f_nac, tarjeta, calle, colonia, n_exterior, n_interior, cp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    if (!$stmt) {
+        $mensaje = "Error en la preparación: " . $mysqli->error;
     } else {
-        // Validar tipo MIME (no solo extensión)
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = finfo_file($finfo, $file['tmp_name']);
-        finfo_close($finfo);
-
-        $allowed = ['image/jpeg', 'image/png', 'image/jpg'];
-        if (!in_array($mime, $allowed)) {
-            $mensaje = "Solo se permiten JPG, PNG o JPEG (tipo detectado: $mime)";
-        } elseif ($file['size'] > 2 * 1024 * 1024) { // 2 MB máximo
-            $mensaje = "El archivo es demasiado grande (máx. 2 MB)";
-        } else {
-            // Leer binario y preparar inserción
-            $data = file_get_contents($file['tmp_name']);
-            $stmt = $mysqli->prepare("INSERT INTO libros (autor, titulo, portada) VALUES (?, ?, ?)");
-            if (!$stmt) {
-                $mensaje = "Error en la preparación: " . $mysqli->error;
+        $stmt->bind_param("ssssssssiis", $nombre, $apellidos, $password, $email, $nac, $tarjeta, $calle, $colonia, $next, $nint, $pc);
+        if ($stmt->execute()) {
+            $id = $mysqli->insert_id;
+            $mensaje = "Cliente guardado con ID: " . $id;
+            $stmt1 = $mysqli->prepare("INSERT INTO carrito_cliente (idUsuario) VALUES (?)");
+            if (!$stmt1) {
+                $mensaje = "Error en la preparación del carrito: " . $mysqli->error;
             } else {
-                $stmt->bind_param("sss", $author, $title, $data);
-                if ($stmt->execute()) {
-                    $mensaje = "Libro guardado con ID: " . $mysqli->insert_id;
-                } else {
-                    $mensaje = "Error al guardar: " . $stmt->error;
+                $stmt1->bind_param("i", $id);
+                if ($stmt1->execute()) {
+                    $mensaje = $mensaje . "y carrito guardado con ID: " . $mysqli->insert_id;
+                    session_start();
+
+                    $_SESSION["id"] = $id['id'];
+
+                    header("Location: inicio.php");
+                    exit();
+                }else{
+                    $mensaje = "Error al guardar carrito: " . $stmt1->error;
                 }
-                $stmt->close();
+                $stmt1->close();
             }
+        } else {
+            $mensaje = "Error al guardar cliente: " . $stmt->error;
         }
     }
+        
+    $stmt->close();
 }
 ?>
 
@@ -82,16 +97,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="inicio.php" aria-current="page">Inicio</a></li>
-                    <li class="nav-item"><a class="nav-link" href="../iniciar_sesion.html">Mi cuenta</a></li>
+                    <li class="nav-item"><a class="nav-link" href="inicio.php">Inicio</a></li>
+                    <li class="nav-item"><a class="nav-link" href="iniciar_sesion.php">Iniciar sesión</a></li>
+                    <li class="nav-item"><a class="nav-link active" aria-current="page">Registrarse</a></li>
                 </ul>
-                <form class="d-flex" action="../carrito.html">
-                    <button class="btn btn-outline-dark" type="submit">
-                        <i class="bi-cart-fill me-1"></i>
-                        Carrito
-                        <span class="badge bg-dark text-white ms-1 rounded-pill">0</span>
-                    </button>
-                </form>
             </div>
         </div>
     </nav>
@@ -128,11 +137,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
                                 </div>
                                 <div class="mb-3">
                                     <label for="contra" class="form-label fw-bold">Contraseña:</label><br>
-                                    <input type="password" class="form-control" name="contra" id="contra" placeholder="***********" required>
+                                    <input type="password" class="form-control" name="contra" id="contra" minlength="6" maxlength="20" placeholder="***********" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="tarjeta" class="form-label fw-bold">Tarjeta TDD/TDC:</label><br>
-                                    <input type="text" class="form-control" name="tarjeta" id="tarjeta" placeholder="Ej. 1234 5678 9012 3456" required>
+                                    <input type="text" class="form-control" name="tarjeta" id="tarjeta" minlength="16" maxlength="16" placeholder="Ej. 1234 5678 9012 3456" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="nac" class="form-label fw-bold">Fecha de nacimiento:</label><br>
@@ -153,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
                                 </div>
                                 <div class="mb-3">
                                     <label for="nint" class="form-label fw-bold">Número interior:</label><br>
-                                    <input type="text" class="form-control" name="nint" id="nint" placeholder="Ej. 123" required>
+                                    <input type="number" class="form-control" name="nint" id="nint" placeholder="Ej. 123" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="cp" class="form-label fw-bold">Código Postal:</label><br>
