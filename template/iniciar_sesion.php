@@ -39,16 +39,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (password_verify($password, $result['password'])) {
             session_start();
             $_SESSION["id"] = $result['id'];
+            if($_SESSION["id"] == 1){
+                header("Location: catalogo.php?msg=login_ok");
+                exit();
+            }
 
             header("Location: inicio.php?msg=login_ok");
             exit();
         } else {
-            $mensaje = "Contraseña incorrecta";
+            header("Location: iniciar_sesion.php?msg=error_pw");
+            exit();
         }
     } else {
-        $mensaje = "El correo ingresado no está asociado a ninguna cuenta";
+        header("Location: iniciar_sesion.php?msg=error_mail");
+        exit();
     }
 }
+
+session_start();
+include "usuario.php";
 
 ?>
 
@@ -57,16 +66,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
     <title>Proyecto Final - Inicio de sesión</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <!-- Favicon-->
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+    <!-- Bootstrap icons-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet" />
+    <!-- Core theme CSS (includes Bootstrap)-->
+    <link href="css/styles.css" rel="stylesheet" />
 </head>
 
 <body>
     <!-- Navigation-->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light bg-secondary fixed-top">
         <div class="container px-4 px-lg-5">
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
@@ -92,6 +107,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Section-->
     <section class="py-5">
         <div class="container">
+            <div class="mt-3 mb-4">
+                <?php include 'alertas.php'; ?>
+            </div>
             <div class="row justify-content-center">
                 <div class="col-md-8 col-lg-6">
                     <div class="card shadow-sm border-0">
@@ -111,12 +129,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                             </form>
                         </div>
-                        <?php if ($mensaje): ?>
-                            <div class="card-body p-4 bg-danger text-white">
-                                <?= $mensaje?>
-                                <!--<?= htmlspecialchars($mensaje) ?>-->
-                            </div>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -124,11 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </section>
 
     <!-- Footer-->
-    <footer class="py-5 bg-dark">
-        <div class="container">
-            <p class="m-0 text-center text-white">Copyright &copy; Your Website 2023</p>
-        </div>
-    </footer>
+    <?php include "footer.php" ?>
     <!-- Bootstrap core JS-->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Core theme JS-->

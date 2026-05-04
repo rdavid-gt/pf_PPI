@@ -1,7 +1,10 @@
 <?php
 
 session_start();
-
+if(isset($_SESSION['id']) && $_SESSION['id'] == 1){
+    header("Location: catalogo.php");
+    exit();
+}
 
 // Configuración simple
 $host = 'db';
@@ -27,6 +30,17 @@ $colonia = $res["colonia"];
 $next = $res["n_exterior"];
 $nint = $res["n_interior"];
 $cp = $res["cp"];
+
+$query = "SELECT SUM(cantidad) as Cuenta FROM carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito;";
+if(isset($_SESSION['id'])){
+    $prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
+    $prod_carrito = $prod_carrito->fetch_assoc();
+    $prod_carrito = $prod_carrito['Cuenta'];
+
+    if(is_null($prod_carrito)){
+        $prod_carrito = 0;
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -43,7 +57,7 @@ $cp = $res["cp"];
     <link href="css/styles.css" rel="stylesheet" />
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-light bg-secondary fixed-top">
         <div class="container px-4 px-lg-5">
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
@@ -56,12 +70,17 @@ $cp = $res["cp"];
                         <li class="nav-item"><a class="nav-link" href="crear_usuario.php">Registrarse</a></li>
                     <?php endif; ?>
                 </ul>
-                <?php if(isset($_SESSION["id"])): ?>
-                    <form class="d-flex" action="../carrito.html">
-                        <button class="btn btn-outline-dark" type="submit">
+                <?php if (isset($_SESSION["id"])): ?>
+                    <form class="d-flex" action="cerrar_sesion.php">
+                        <button class="btn btn-outline-danger mb-1 me-1" type="submit">
+                            Cerrar Sesión
+                        </button>
+                    </form>
+                    <form class="d-flex" action="carrito.php">
+                        <button class="btn btn-outline-dark mb-1" type="submit">
                             <i class="bi-cart-fill me-1"></i>
                             Carrito
-                            <span class="badge bg-dark text-white ms-1 rounded-pill">0</span>
+                            <span class="badge bg-dark text-white ms-1 rounded-pill"><?php echo $prod_carrito ?></span>
                         </button>
                     </form>
                 <?php endif; ?>
@@ -102,11 +121,7 @@ $cp = $res["cp"];
     </section>
 
     <!-- Footer-->
-    <footer class="py-5 bg-dark">
-        <div class="container">
-            <p class="m-0 text-center text-white">Copyright &copy; Your Website 2023</p>
-        </div>
-    </footer>
+    <?php include "footer.php" ?>
     <!-- Bootstrap core JS-->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Core theme JS-->

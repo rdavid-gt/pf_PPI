@@ -39,6 +39,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     exit; // Detener ejecución para no enviar HTML
 }
 session_start();
+if(isset($_SESSION['id']) && $_SESSION['id'] == 1){
+    header("Location: catalogo.php");
+    exit();
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Leer binario y preparar inserción
@@ -51,12 +55,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
         $id_carrito = $id_carrito->fetch_assoc();
 
-        $query = "INSERT INTO carrito_productos (idCarrito, idProducto, cantidad) VALUES (?, ?, ?)";
-        $mysqli->execute_query($query, [$id_carrito['id'], $_POST['id_prod'], $_POST['cant']]);
+        $query = "SELECT cantidad FROM carrito_productos CP, carrito_cliente CC WHERE idProducto = ? AND CC.id = CP.idCarrito AND CC.idUsuario = ?";
+        $resultado = $mysqli->execute_query($query, [$_POST['id_prod'], $_SESSION['id']]);
+        $resultado = $resultado->fetch_assoc();
 
-        $query = "UPDATE producto SET cantidad = cantidad - ? WHERE id = ?";
-        $mysqli->execute_query($query, [$_POST['cant'], $_POST['id_prod']]);
-
+        if(is_null($resultado)){
+            $query = "INSERT INTO carrito_productos (idCarrito, idProducto, cantidad) VALUES (?, ?, ?)";
+            $mysqli->execute_query($query, [$id_carrito['id'], $_POST['id_prod'], $_POST['cant']]);
+        }else{
+            if($item['cantidad'] >=  $_POST['cant'] + $resultado['cantidad']){
+                $query = "UPDATE carrito_productos SET cantidad = cantidad + ? WHERE idProducto = ?";
+                $mysqli->execute_query($query, [$_POST['cant'], $_POST['id_prod']]);
+                header("Location: inicio.php?msg=success-mc");
+                exit();
+            }else{
+                header("Location: inicio.php?msg=error_stock");
+                exit();
+            }
+        }
         header("Location: inicio.php?msg=success");
         exit();
     } else {
@@ -66,9 +82,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $query = "SELECT SUM(cantidad) as Cuenta FROM carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito;";
-$prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
-$prod_carrito = $prod_carrito->fetch_assoc();
-$prod_carrito = $prod_carrito['Cuenta'];
+if(isset($_SESSION['id'])){
+    $prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
+    $prod_carrito = $prod_carrito->fetch_assoc();
+    $prod_carrito = $prod_carrito['Cuenta'];
+
+    if(is_null($prod_carrito)){
+        $prod_carrito = 0;
+    }
+}
+
+
 
 $mysqli->close();
 ?>
@@ -136,7 +160,7 @@ $mysqli->close();
     <!-- Section-->
     <section class="py-5">
         <div class="container px-4 px-lg-5">
-            <div class="container mt-3">
+            <div class="mt-3 mb-4">
                 <?php include 'alertas.php'; ?>
             </div>
             <div class="row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-center">
@@ -144,75 +168,73 @@ $mysqli->close();
                     <p><img src="../imagenes/no_products.avif" alt="No hay productos registrados"></p>
                 <?php else: ?>
                     <?php foreach ($productos as $producto): ?>
-                        <div class="col mb-5">
-                            <div class="card h-100" data-bs-toggle="modal" data-bs-target="#modalProducto<?= $producto['id'] ?>">
-                                <!-- Product image-->
-                                <img class="card-img-top" src="?id=<?= $producto['id'] ?>" alt="<?= htmlspecialchars($producto['nombre']) ?>">
-                                <!-- Product details-->
-                                <div class="card-body p-4">
-                                    <div class="text-center">
-                                        <!-- Product name-->
-                                        <h5 class="fw-bolder"><?= htmlspecialchars($producto['nombre']) ?></h5>
-                                        <!-- Product price-->
-                                        $<?= htmlspecialchars($producto['precio']) ?><br>
-                                        <?= htmlspecialchars($producto['compania']) ?><br>
-                                        <?= htmlspecialchars($producto['plataforma']) ?><br>
-                                    </div>
-                                </div>
-                                <!-- Product actions-->
-                                <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
-                                    <div class="text-center"><a class="btn btn-outline-dark mt-auto">Descripcion</a></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal fade" id="modalProducto<?= $producto['id'] ?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                            <div class="modal-dialog modal-lg">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="tituloProducto"><?= htmlspecialchars($producto['nombre']) ?></h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <img src="?id=<?= $producto['id'] ?>" id="imagenModal" class="img-fluid rounded" alt="Portada">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h4 id="precioModal">$<?= htmlspecialchars($producto['precio']) ?></h4>
-                                                <p id="descripcionModal">
-                                                    <strong>Descripción: </strong><?= htmlspecialchars($producto['descripcion']) ?>
-                                                </p>
-                                                <p><strong>Compañía: </strong><?= htmlspecialchars($producto['compania']) ?></p>
-                                                <p><strong>Plataforma: </strong><?= htmlspecialchars($producto['plataforma']) ?></p>
-                                                <p><strong>Fecha de publicación: </strong><?= htmlspecialchars($producto['f_public']) ?></p>
-                                                <p><strong>Cantidad en almacén: </strong><?= htmlspecialchars($producto['cantidad']) ?></p>
-                                            </div>
+                        <?php if ($producto['cantidad'] > 0): ?>
+                            <div class="col mb-5">
+                                <div class="card h-100" data-bs-toggle="modal" data-bs-target="#modalProducto<?= $producto['id'] ?>">
+                                    <!-- Product image-->
+                                    <img class="card-img-top" src="?id=<?= $producto['id'] ?>" alt="<?= htmlspecialchars($producto['nombre']) ?>">
+                                    <!-- Product details-->
+                                    <div class="card-body p-4">
+                                        <div class="text-center">
+                                            <!-- Product name-->
+                                            <h5 class="fw-bolder"><?= htmlspecialchars($producto['nombre']) ?></h5>
+                                            <!-- Product price-->
+                                            $<?= htmlspecialchars($producto['precio']) ?><br>
+                                            <?= htmlspecialchars($producto['compania']) ?><br>
+                                            <?= htmlspecialchars($producto['plataforma']) ?><br>
                                         </div>
                                     </div>
-                                    <div class="modal-footer">
-                                        <?php if (isset($_SESSION["id"])):  ?>
-                                            <form enctype="multipart/form-data" method="post">
-                                                <input type="hidden" name="id_prod" value="<?php echo $producto['id']; ?>">
-                                                <label for="cant">Cantidad a agregar al carrito: </label>
-                                                <input style="width: 50px;" type="number" name="cant" id="cant" min="1" max="<?php echo $producto['cantidad']; ?>">
-                                                <button type="submit" class="btn btn-primary">Añadir al carrito</button>
-                                            </form>
-                                        <?php endif; ?>
+                                    <!-- Product actions-->
+                                    <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                        <div class="text-center"><a class="btn btn-outline-dark mt-auto">Descripción</a></div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                            <div class="modal fade" id="modalProducto<?= $producto['id'] ?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="tituloProducto"><?= htmlspecialchars($producto['nombre']) ?></h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <img src="?id=<?= $producto['id'] ?>" id="imagenModal" class="img-fluid rounded" alt="Portada">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h4 id="precioModal">$<?= htmlspecialchars($producto['precio']) ?></h4>
+                                                    <p id="descripcionModal">
+                                                        <strong>Descripción: </strong><?= htmlspecialchars($producto['descripcion']) ?>
+                                                    </p>
+                                                    <p><strong>Compañía: </strong><?= htmlspecialchars($producto['compania']) ?></p>
+                                                    <p><strong>Plataforma: </strong><?= htmlspecialchars($producto['plataforma']) ?></p>
+                                                    <p><strong>Fecha de publicación: </strong><?= htmlspecialchars($producto['f_public']) ?></p>
+                                                    <p><strong>Cantidad en almacén: </strong><?= htmlspecialchars($producto['cantidad']) ?></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <?php if (isset($_SESSION["id"])):  ?>
+                                                <form enctype="multipart/form-data" method="post">
+                                                    <input type="hidden" name="id_prod" value="<?php echo $producto['id']; ?>">
+                                                    <label for="cant">Cantidad a agregar al carrito: </label>
+                                                    <input style="width: 50px;" type="number" name="cant" id="cant" min="1" max="<?php echo $producto['cantidad']; ?>">
+                                                    <button type="submit" class="btn btn-primary">Añadir al carrito</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>
         </div>
     </section>
     <!-- Footer-->
-    <footer class="py-5 bg-dark">
-        <div class="container">
-            <p class="m-0 text-center text-white">Copyright &copy; Your Website 2023</p>
-        </div>
-    </footer>
+    <?php include "footer.php" ?>
     <!-- Bootstrap core JS-->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Core theme JS-->

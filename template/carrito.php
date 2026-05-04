@@ -7,6 +7,13 @@ $pass = '12345';
 $db = 'proyectoFinal';
 
 session_start();
+if(!isset($_SESSION['id'])){
+    header("Location: inicio.php");
+    exit();
+}elseif($_SESSION['id'] == 1){
+    header("Location: catalogo.php");
+    exit();
+}
 
 // Conexión (con manejo básico de error)
 $mysqli = new mysqli($host, $user, $pass, $db);
@@ -25,6 +32,9 @@ $query = "SELECT SUM(cantidad) as Cuenta FROM carrito_productos CP, carrito_clie
 $prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
 $prod_carrito = $prod_carrito->fetch_assoc();
 $prod_carrito = $prod_carrito['Cuenta'];
+if(is_null($prod_carrito)){
+    $prod_carrito = 0;
+}
 
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
@@ -46,38 +56,84 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     exit; // Detener ejecución para no enviar HTML
 }
 
+$p_total = 0;
+foreach ($productos as $producto):
+    $p_total += number_format(htmlspecialchars($producto['precio'] * $producto['CantCarrito']), 2);
+endforeach;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Leer binario y preparar inserción
 
-    if($_SERVER['action'] != 'delete'){
-        $res_stock = $mysqli->execute_query("SELECT cantidad FROM producto WHERE id = ?", [$_POST['id_prod']]);
-        $item = $res_stock->fetch_assoc();
+    if (isset($_POST['actions'])) {
 
-        if ($item && $item['cantidad'] >= $_POST['cant'] && $item['cantidad'] > 0) {
+        if ($_POST['actions'] == 'modificar') {
+
+            $res_stock = $mysqli->execute_query("SELECT cantidad FROM producto WHERE id = ?", [$_POST['id_prod']]);
+            $item = $res_stock->fetch_assoc();
+
+            if ($item && $item['cantidad'] >= $_POST['cant'] && $item['cantidad'] > 0) {
+                $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
+                $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
+                $id_carrito = $id_carrito->fetch_assoc();
+
+                $query = "UPDATE carrito_productos SET cantidad = ? WHERE idCarrito = ? AND idProducto = ?";
+                $mysqli->execute_query($query, [$_POST['cant'], $id_carrito['id'], $_POST['id_prod']]);
+
+                header("Location: carrito.php?msg=success-mc");
+                exit();
+            } else {
+                header("Location: carrito.php?msg=error_stock");
+                exit();
+            }
+        } elseif ($_POST['actions'] == 'comprar') {
+            foreach($productos as $producto){
+                $no_stock = $producto['cantidad'] < $producto['CantCarrito'];
+                if ($no_stock){
+                    break;
+                }
+            }
+            
+            if (!$no_stock){
+                $query = "INSERT INTO compra (idUsuario, total) VALUES (?,?)";
+                $mysqli->execute_query($query, [$_SESSION['id'],$p_total]);
+
+                $idCompra = $mysqli->insert_id;
+
+                $query = "INSERT INTO historial (idUsuario, idCompra) VALUES (?,?)";
+                $mysqli->execute_query($query, [$_SESSION['id'],$idCompra]);
+
+                foreach($productos as $producto){
+                    $query = "INSERT INTO detalle_compra (idCompra, idProducto, cantidad, precio_unitario) VALUES (?,?,?,?)";
+                    $mysqli->execute_query($query, [$idCompra, $producto['id'], $producto['CantCarrito'], $producto['precio']]);
+
+                    $query = "UPDATE producto SET cantidad = cantidad - ? WHERE id = ?";
+                    $mysqli->execute_query($query, [$producto['CantCarrito'], $producto['id']]);
+                }
+
+                $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
+                $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
+                $id_carrito = $id_carrito->fetch_assoc();
+
+                $query = "DELETE FROM carrito_productos WHERE idCarrito = ?";
+                $mysqli->execute_query($query, [$id_carrito['id']]);
+
+                header("Location: inicio.php?msg=success-buy");
+                exit();
+            }else{
+                header("Location: carrito.php?msg=error_stock");
+                exit();
+            }
+        } elseif ($_POST['actions'] == 'delete') {
             $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
             $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
             $id_carrito = $id_carrito->fetch_assoc();
 
-            $query = "UPDATE carrito_productos SET cantidad = ? WHERE idCarrito = ? AND idProducto = ?";
-            $mysqli->execute_query($query, [$_POST['cant'],$id_carrito['id'],$_POST['id_prod']]);
+            $query = "DELETE FROM carrito_productos WHERE idCarrito = ? AND idProducto = ?";
+            $mysqli->execute_query($query, [$id_carrito['id'], $_POST['id_p']]);
 
             header("Location: carrito.php?msg=success-mc");
             exit();
-        } else {
-            header("Location: carrito.php?msg=error_stock");
-            exit();
         }
-    }else{
-        $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
-        $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
-        $id_carrito = $id_carrito->fetch_assoc();
-
-        $query = "DELETE FROM carrito_productos WHERE idCarrito = ? AND idProducto = ?";
-        $id_carrito = $mysqli->execute_query($query, [$_SESSION['id'],$_POST['id_p']]);
-        $id_carrito = $id_carrito->fetch_assoc();
-
-        header("Location: carrito.php?msg=success-mc");
-        exit();
     }
 }
 
@@ -93,7 +149,7 @@ $mysqli->close();
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <meta name="description" content="" />
     <meta name="author" content="" />
-    <title>Proyecto Final - Tienda</title>
+    <title>Proyecto Final - Carrito</title>
     <!-- Favicon-->
     <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
     <!-- Bootstrap icons-->
@@ -104,7 +160,7 @@ $mysqli->close();
 
 <body>
     <!-- Navigation-->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-light bg-secondary fixed-top">
         <div class="container px-4 px-lg-5">
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
@@ -140,7 +196,11 @@ $mysqli->close();
             <div class="text-center text-white">
                 <h1 class="display-4 fw-bolder">Tu carrito</h1>
                 <?php if (isset($_SESSION["id"])):  ?>
-                    <p class="lead fw-normal text-white-50 mb-0">Contiene <?php echo $prod_carrito ?> productos</p>
+                    <?php if ($prod_carrito > 0):  ?>
+                        <p class="lead fw-normal text-white-50 mb-0">Contiene <?php echo $prod_carrito ?> productos</p>
+                    <?php else: ?>
+                        <p class="lead fw-normal text-white-50 mb-0">No contiene productos</p>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
@@ -170,7 +230,7 @@ $mysqli->close();
                                         <?= htmlspecialchars($producto['compania']) ?><br>
                                         <?= htmlspecialchars($producto['plataforma']) ?><br>
                                         Cantidad en carrito: <?= htmlspecialchars($producto['CantCarrito']) ?><br>
-                                        Precio total: $<?= htmlspecialchars($producto['precio'] * $producto['CantCarrito']) ?>.00<br>
+                                        Precio total: $<?= number_format(htmlspecialchars($producto['precio'] * $producto['CantCarrito']), 2)  ?><br>
                                     </div>
                                 </div>
                                 <!-- Product actions-->
@@ -179,7 +239,7 @@ $mysqli->close();
                                         <a class="btn btn-outline-dark mt-auto my-1">Modificar</a>
                                         <form enctype="multipart/form-data" method="post">
                                             <input type="hidden" name="id_p" value="<?php echo $producto['id']; ?>">
-                                            <button class="btn btn-outline-dark mt-auto" name="action" value="delete" type="submit">Eliminar producto(s)</button>
+                                            <button class="btn btn-outline-dark mt-auto" name="actions" value="delete" type="submit">Eliminar producto(s)</button>
                                         </form>
                                     </div>
                                 </div>
@@ -215,7 +275,7 @@ $mysqli->close();
                                                 <input type="hidden" name="id_prod" value="<?php echo $producto['id']; ?>">
                                                 <label for="cant">Nueva cantidad en carrito: </label>
                                                 <input style="width: 50px;" type="number" name="cant" id="cant" min="1" max="<?php echo $producto['cantidad']; ?>">
-                                                <button type="submit" class="btn btn-primary">Modificar carrito</button>
+                                                <button type="submit" class="btn btn-primary" name="actions" value="modificar">Modificar carrito</button>
                                             </form>
                                         <?php endif; ?>
                                     </div>
@@ -225,14 +285,81 @@ $mysqli->close();
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>
+            <?php if ($prod_carrito > 0): ?>
+                <div class="text-end mb-5" data-bs-toggle="modal" data-bs-target="#modalResumen">
+                    <a class="btn btn-success btn-lg" type="submit" name="shop_action" value="process_checkout">
+                        <i class="bi-bag-check-fill me-1"></i>
+                        Finalizar Compra
+                    </a>
+                </div>
+            <?php endif; ?>
         </div>
     </section>
     <!-- Footer-->
-    <footer class="py-5 bg-dark">
-        <div class="container">
-            <p class="m-0 text-center text-white">Copyright &copy; Your Website 2023</p>
+    <?php include "footer.php" ?>
+    <!-- Resumen-->
+    <?php if (!empty($productos)): ?>
+        <div class="modal fade" id="modalResumen" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="tituloProducto">Resumen de su carrito</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="cart-items-container">
+                            <?php foreach ($productos as $producto): ?>
+                                <div class="row align-items-center mb-4 pb-3 border-bottom">
+                                    <!-- Columna 1: Imagen del producto -->
+                                    <div class="col-3 col-md-2">
+                                        <!-- Imagen con clase thumbnail para marco suave -->
+                                        <img src="?id=<?= $producto['id'] ?>" alt="<?= $producto['nombre'] ?>" class="img-thumbnail img-fluid rounded">
+                                    </div>
+
+                                    <!-- Columna 2: Detalles del producto -->
+                                    <div class="col-9 col-md-10">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <!-- Nombre del Juego destacado -->
+                                                <h6 class="fw-bolder mb-1"><?= htmlspecialchars($producto['nombre']) ?></h6>
+                                                <!-- Plataforma en texto secundario -->
+                                                <p class="text-muted small mb-2"><?= htmlspecialchars($producto['plataforma']) ?></p>
+                                            </div>
+                                            <!-- Precio Total del artículo alineado a la derecha -->
+                                            <div class="text-end">
+                                                <span class="fw-bold fs-5 text-success">$<?= number_format(htmlspecialchars($producto['precio'] * $producto['CantCarrito']), 2)  ?></span>
+                                                <div class="text-muted small">Total</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Detalles de cantidad y precio unitario organizados -->
+                                        <div class="d-flex justify-content-start align-items-center bg-light p-2 rounded small">
+                                            <span class="me-4"><strong>Cantidad:</strong> <?= htmlspecialchars($producto['CantCarrito']) ?></span>
+                                            <span><strong>Precio unitario: </strong>$<?= htmlspecialchars($producto['precio']) ?></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                            <div class="row mt-4 pt-3 border-top border-2">
+                                <div class="col-12 text-end">
+                                    <h5 class="fw-bolder">Total de la Compra: 
+                                        <span class="text-success ms-2">$<?= number_format(htmlspecialchars($p_total),2)  ?></span>
+                                    </h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <?php if (isset($_SESSION["id"])):  ?>
+                            <form enctype="multipart/form-data" method="post" >
+                                <button type="submit" class="btn btn-primary" name="actions" value="comprar">Completar compra</button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
         </div>
-    </footer>
+    <?php endif; ?>
     <!-- Bootstrap core JS-->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Core theme JS-->

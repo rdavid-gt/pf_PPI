@@ -61,43 +61,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
             } else {
                 $stmt->bind_param("sssissds", $nombre, $descripcion, $f_public, $cantidad, $compania, $plataforma, $precio, $data);
                 if ($stmt->execute()) {
-                    $mensaje = "Producto guardado con ID: " . $mysqli->insert_id;
+                    header("Location: crear_producto.php?msg=success-prod");
                 } else {
-                    $mensaje = "Error al guardar: " . $stmt->error;
+                    header("Location: crear_producto.php?msg=error_prod");
                 }
+                exit();
                 $stmt->close();
             }
         }
     }
 }
+
+session_start();
+if(!isset($_SESSION['id'])){
+    header("Location: inicio.php");
+    exit();
+}
+include "admin.php"
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro de producto</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+    <title>Proyecto Final - Registro de producto</title>
+    <!-- Favicon-->
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+    <!-- Bootstrap icons-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet" />
+    <!-- Core theme CSS (includes Bootstrap)-->
+    <link href="css/styles.css" rel="stylesheet" />
 </head>
 
 <body>
     <!-- Navigation-->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light bg-secondary fixed-top">
         <div class="container px-4 px-lg-5">
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="inicio.php" aria-current="page">Inicio</a></li>
-                    <li class="nav-item"><a class="nav-link" href="../iniciar_sesion.html">Mi cuenta</a></li>
+                    <li class="nav-item"><a class="nav-link" href="catalogo.php">Catálogo</a></li>
+                    <li class="nav-item"><a class="nav-link" href="admin_historial.php">Historial</a></li>
+                    <li class="nav-item"><a class="nav-link active" aria-current="page">Agregar producto</a></li>
                 </ul>
-                <form class="d-flex" action="../carrito.html">
-                    <button class="btn btn-outline-dark" type="submit">
-                        <i class="bi-cart-fill me-1"></i>
-                        Carrito
-                        <span class="badge bg-dark text-white ms-1 rounded-pill">0</span>
+                <form class="d-flex" action="cerrar_sesion.php">
+                    <button class="btn btn-outline-danger mb-1 me-1" type="submit">
+                        Cerrar Sesión
                     </button>
                 </form>
             </div>
@@ -116,6 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
     <!-- Section-->
     <section class="py-5">
         <div class="container">
+            <div class="container mt-3">
+                <?php include 'alertas.php'; ?>
+            </div>
             <div class="row justify-content-center">
                 <div class="col-md-8 col-lg-6">
                     <div class="card shadow-sm border-0">
@@ -165,26 +181,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['imagen'])) {
         </div>
     </section>
 
-    <?php if ($mensaje): ?>
-        <div class="container mt-2">
-            <div class="row justify-content-center">
-                <div class="col-md-8 col-lg-6">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body p-4 bg-success text-white">
-                            <?= htmlspecialchars($mensaje) ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
-
     <!-- Footer-->
-    <footer class="py-5 bg-dark">
-        <div class="container">
-            <p class="m-0 text-center text-white">Copyright &copy; Your Website 2023</p>
-        </div>
-    </footer>
+    <?php include "footer.php" ?>
     <!-- Bootstrap core JS-->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Core theme JS-->
