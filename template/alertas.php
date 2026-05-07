@@ -16,6 +16,14 @@ if (isset($_GET['msg'])) {
             $mensaje = "Lo sentimos, no hay suficiente stock disponible.";
             $clase = "alert-danger";
             break;
+        case 'error_mail':
+            $mensaje = "El email ingresado no es válido.";
+            $clase = "alert-danger";
+            break;
+        case 'error_tarjeta':
+            $mensaje = "La tarjeta ingresada no es válida.";
+            $clase = "alert-danger";
+            break;
         case 'error_pw':
             $mensaje = "Contraseña incorrecta";
             $clase = "alert-danger";

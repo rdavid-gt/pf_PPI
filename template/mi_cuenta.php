@@ -1,6 +1,8 @@
 <?php
 
 session_start();
+
+// Lógica que evita al administrador entrar a esta página
 if(isset($_SESSION['id']) && $_SESSION['id'] == 1){
     header("Location: catalogo.php");
     exit();
@@ -16,10 +18,12 @@ $db = 'proyectoFinal';
 $mysqli = new mysqli($host, $user, $pass, $db);
 if ($mysqli->connect_error) die("Conexión fallida: " . $mysqli->connect_error);
 
+// Query para obtener toda la información del usuario que haya iniciado sesión 
 $query = "SELECT * FROM usuario WHERE id = ?";
 $resultado = $mysqli->execute_query($query, [$_SESSION["id"]]);
 $res = $resultado->fetch_assoc();
 
+// Refactorización de la información del usuario
 $nombre = $res["nombre"];
 $apellidos = $res["apellido"];
 $email = $res["email"];
@@ -31,6 +35,7 @@ $next = $res["n_exterior"];
 $nint = $res["n_interior"];
 $cp = $res["cp"];
 
+// Query para obtener la cantidad de productos en el carrito del cliente
 $query = "SELECT SUM(cantidad) as Cuenta FROM carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito;";
 if(isset($_SESSION['id'])){
     $prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);

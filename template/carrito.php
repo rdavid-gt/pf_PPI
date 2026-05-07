@@ -7,6 +7,8 @@ $pass = '12345';
 $db = 'proyectoFinal';
 
 session_start();
+
+// Lógica para impedir que el administrador entre a esta página
 if(!isset($_SESSION['id'])){
     header("Location: inicio.php");
     exit();
@@ -19,6 +21,7 @@ if(!isset($_SESSION['id'])){
 $mysqli = new mysqli($host, $user, $pass, $db);
 if ($mysqli->connect_error) die("Conexión fallida: " . $mysqli->connect_error);
 
+// Query para obtener la información de los productos en el carrito del cliente, junto con su cantidad en él
 $sql = "SELECT P.id, P.nombre, P.descripcion, P.f_public, P.cantidad, P.compania, P.plataforma, P.precio, P.imagen, CP.cantidad as CantCarrito FROM producto P, carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito AND P.id = CP.idProducto ORDER BY P.id ASC;";
 $resultado = $mysqli->execute_query($sql, [$_SESSION['id']]);
 $productos = [];
@@ -28,6 +31,7 @@ if ($resultado && $resultado->num_rows > 0) {
     }
 }
 
+// Query para obtener la cantidad de productos en el carrito
 $query = "SELECT SUM(cantidad) as Cuenta FROM carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito;";
 $prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
 $prod_carrito = $prod_carrito->fetch_assoc();
@@ -36,6 +40,7 @@ if(is_null($prod_carrito)){
     $prod_carrito = 0;
 }
 
+// Conseguir las imágenes mediante el id del producto
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
     $stmt = $mysqli->prepare("SELECT imagen FROM producto WHERE id = ?");
@@ -56,16 +61,19 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     exit; // Detener ejecución para no enviar HTML
 }
 
+// Calcular el precio de todo el carrito
 $p_total = 0;
 foreach ($productos as $producto):
     $p_total += number_format(htmlspecialchars($producto['precio'] * $producto['CantCarrito']), 2);
 endforeach;
 
+// Recibir la acción a realizar
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Leer binario y preparar inserción
 
     if (isset($_POST['actions'])) {
 
+        // Modifica el carrito sólo en cantidad
         if ($_POST['actions'] == 'modificar') {
 
             $res_stock = $mysqli->execute_query("SELECT cantidad FROM producto WHERE id = ?", [$_POST['id_prod']]);
@@ -85,7 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: carrito.php?msg=error_stock");
                 exit();
             }
+        // Borra el carrito y añade la compra al historial
         } elseif ($_POST['actions'] == 'comprar') {
+
+            // Lógica para verificar si aún hay stock
             foreach($productos as $producto){
                 $no_stock = $producto['cantidad'] < $producto['CantCarrito'];
                 if ($no_stock){
@@ -93,27 +104,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
+            // Realiza la compra
             if (!$no_stock){
+
+                // Añade la compra a su respectiva tabla
                 $query = "INSERT INTO compra (idUsuario, total) VALUES (?,?)";
                 $mysqli->execute_query($query, [$_SESSION['id'],$p_total]);
 
                 $idCompra = $mysqli->insert_id;
 
+                // Inserta la compra al historial
                 $query = "INSERT INTO historial (idUsuario, idCompra) VALUES (?,?)";
                 $mysqli->execute_query($query, [$_SESSION['id'],$idCompra]);
 
+                // Inserta cada producto como detalles de la compra, para mantener su precio si es que cambia
                 foreach($productos as $producto){
                     $query = "INSERT INTO detalle_compra (idCompra, idProducto, cantidad, precio_unitario) VALUES (?,?,?,?)";
                     $mysqli->execute_query($query, [$idCompra, $producto['id'], $producto['CantCarrito'], $producto['precio']]);
 
+                    // Actualiza el catálogo
                     $query = "UPDATE producto SET cantidad = cantidad - ? WHERE id = ?";
                     $mysqli->execute_query($query, [$producto['CantCarrito'], $producto['id']]);
                 }
 
+                // Busca el carrito del usuario
                 $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
                 $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
                 $id_carrito = $id_carrito->fetch_assoc();
 
+                // Borra los productos del carrito
                 $query = "DELETE FROM carrito_productos WHERE idCarrito = ?";
                 $mysqli->execute_query($query, [$id_carrito['id']]);
 
@@ -123,11 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: carrito.php?msg=error_stock");
                 exit();
             }
+        // Elimina el producto del carrito
         } elseif ($_POST['actions'] == 'delete') {
+            // Busca el carrito del usuario
             $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
             $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
             $id_carrito = $id_carrito->fetch_assoc();
 
+            // Elimina el producto del carrito
             $query = "DELETE FROM carrito_productos WHERE idCarrito = ? AND idProducto = ?";
             $mysqli->execute_query($query, [$id_carrito['id'], $_POST['id_p']]);
 

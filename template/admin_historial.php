@@ -10,6 +10,7 @@ $db = 'proyectoFinal';
 $mysqli = new mysqli($host, $user, $pass, $db);
 if ($mysqli->connect_error) die("Conexión fallida: " . $mysqli->connect_error);
 
+// Consigue el historial
 $sql = "SELECT * FROM historial ORDER BY id ASC";
 $resultado = $mysqli->query($sql);
 $historial = [];
@@ -19,15 +20,8 @@ if ($resultado && $resultado->num_rows > 0) {
     }
 }
 
-$sql = "SELECT * FROM detalle_compra ORDER BY id ASC";
-$resultado = $mysqli->query($sql);
-$detalles = [];
-if ($resultado && $resultado->num_rows > 0) {
-    while ($row = $resultado->fetch_assoc()) {
-        $detalles[] = $row;
-    }
-}
 
+// Muestra la imagen del producto por id
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
     $stmt = $mysqli->prepare("SELECT imagen FROM producto WHERE id = ?");
@@ -48,6 +42,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     exit; // Detener ejecución para no enviar HTML
 }
 
+// Verifica que haya usuario y que sea el administrador
 session_start();
 if(!isset($_SESSION['id'])){
     header("Location: inicio.php");
@@ -144,6 +139,20 @@ $mysqli->close();
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="cart-items-container">
+                                                            <?php 
+                                                                $mysqli = new mysqli($host, $user, $pass, $db);
+
+                                                                // Consigue los detalles de cada compra
+                                                                $sql = "SELECT * FROM detalle_compra WHERE idCompra = ? ORDER BY id ASC";
+                                                                $resultado = $mysqli->execute_query($sql, [$compra['idCompra']]);
+                                                                $detalles = [];
+                                                                if ($resultado && $resultado->num_rows > 0) {
+                                                                    while ($row = $resultado->fetch_assoc()) {
+                                                                        $detalles[] = $row;
+                                                                    }
+                                                                }
+                                                                $mysqli->close();
+                                                             ?>
                                                             <?php foreach ($detalles as $detalle): ?>
                                                                 <?php
                                                                     $mysqli = new mysqli($host, $user, $pass, $db);

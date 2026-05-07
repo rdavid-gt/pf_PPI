@@ -19,6 +19,7 @@ $nombre = $apellidos = $email = $password = $tarjeta = $nac = "";
 // Domicilio
 $calle = $colonia = $next = $nint = $pc = "";
 
+// Limpieza de campos
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nombre = clean($_POST["nombre"]);
     $apellidos = clean($_POST["apellidos"]);
@@ -43,39 +44,49 @@ function clean($data){
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Leer binario y preparar inserción
-    $stmt = $mysqli->prepare("INSERT INTO usuario (nombre, apellido, password, email, f_nac, tarjeta, calle, colonia, n_exterior, n_interior, cp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    if (!$stmt) {
-        $mensaje = "Error en la preparación: " . $mysqli->error;
-    } else {
-        $stmt->bind_param("ssssssssiis", $nombre, $apellidos, $password, $email, $nac, $tarjeta, $calle, $colonia, $next, $nint, $pc);
-        if ($stmt->execute()) {
-            $id = $mysqli->insert_id;
-            $mensaje = "Cliente guardado con ID: " . $id;
-            $stmt1 = $mysqli->prepare("INSERT INTO carrito_cliente (idUsuario) VALUES (?)");
-            if (!$stmt1) {
-                $mensaje = "Error en la preparación del carrito: " . $mysqli->error;
+    if(filter_var($email, FILTER_VALIDATE_EMAIL)){
+        if(preg_match('/^[0-9]{16}$/', $tarjeta)){
+            // Leer binario y preparar inserción
+            $stmt = $mysqli->prepare("INSERT INTO usuario (nombre, apellido, password, email, f_nac, tarjeta, calle, colonia, n_exterior, n_interior, cp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            if (!$stmt) {
+                $mensaje = "Error en la preparación: " . $mysqli->error;
             } else {
-                $stmt1->bind_param("i", $id);
-                if ($stmt1->execute()) {
-                    $mensaje = $mensaje . "y carrito guardado con ID: " . $mysqli->insert_id;
-                    session_start();
+                $stmt->bind_param("ssssssssiis", $nombre, $apellidos, $password, $email, $nac, $tarjeta, $calle, $colonia, $next, $nint, $pc);
+                if ($stmt->execute()) {
+                    $id = $mysqli->insert_id;
+                    $mensaje = "Cliente guardado con ID: " . $id;
+                    $stmt1 = $mysqli->prepare("INSERT INTO carrito_cliente (idUsuario) VALUES (?)");
+                    if (!$stmt1) {
+                        $mensaje = "Error en la preparación del carrito: " . $mysqli->error;
+                    } else {
+                        $stmt1->bind_param("i", $id);
+                        if ($stmt1->execute()) {
+                            $mensaje = $mensaje . "y carrito guardado con ID: " . $mysqli->insert_id;
+                            session_start();
 
-                    $_SESSION["id"] = $id['id'];
+                            $_SESSION["id"] = $id;
 
-                    header("Location: inicio.php");
-                    exit();
-                }else{
-                    $mensaje = "Error al guardar carrito: " . $stmt1->error;
+                            header("Location: inicio.php");
+                            exit();
+                        }else{
+                            $mensaje = "Error al guardar carrito: " . $stmt1->error;
+                        }
+                        $stmt1->close();
+                    }
+                } else {
+                    $mensaje = "Error al guardar cliente: " . $stmt->error;
                 }
-                $stmt1->close();
             }
-        } else {
-            $mensaje = "Error al guardar cliente: " . $stmt->error;
+            $stmt->close();
+        }else{
+            header("Location: crear_usuario.php?msg=error_tarjeta");
+            exit();
         }
+    }else{
+        header("Location: crear_usuario.php?msg=error_mail");
+        exit();
     }
-        
-    $stmt->close();
+    
 }
 session_start();
 include "usuario.php";
@@ -126,6 +137,9 @@ include "usuario.php";
     <!-- Section-->
     <section class="py-5">
         <div class="container">
+            <div class="mt-3 mb-4">
+                <?php include 'alertas.php'; ?>
+            </div>
             <div class="row justify-content-center">
                 <div class="col-md-8 col-lg-6">
                     <div class="card shadow-sm border-0">
@@ -188,20 +202,6 @@ include "usuario.php";
             </div>
         </div>
     </section>
-
-    <?php if ($mensaje): ?>
-        <div class="container mt-2">
-            <div class="row justify-content-center">
-                <div class="col-md-8 col-lg-6">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body p-4 bg-success text-white">
-                            <?= htmlspecialchars($mensaje) ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
 
     <!-- Footer-->
     <?php include "footer.php" ?>

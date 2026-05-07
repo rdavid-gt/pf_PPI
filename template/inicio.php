@@ -10,6 +10,7 @@ $db = 'proyectoFinal';
 $mysqli = new mysqli($host, $user, $pass, $db);
 if ($mysqli->connect_error) die("Conexión fallida: " . $mysqli->connect_error);
 
+// Query para conseguir los productos en el catálogo
 $sql = "SELECT id, nombre, descripcion, f_public, cantidad, compania, plataforma, precio, imagen FROM producto ORDER BY id ASC";
 $resultado = $mysqli->query($sql);
 $productos = [];
@@ -19,6 +20,7 @@ if ($resultado && $resultado->num_rows > 0) {
     }
 }
 
+// Conseguir las imágenes mediante el id del producto
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
     $stmt = $mysqli->prepare("SELECT imagen FROM producto WHERE id = ?");
@@ -38,31 +40,40 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $mysqli->close();
     exit; // Detener ejecución para no enviar HTML
 }
+
+// Redirigir al admin al catálogo
 session_start();
 if(isset($_SESSION['id']) && $_SESSION['id'] == 1){
     header("Location: catalogo.php");
     exit();
 }
 
+// Lógica del carrito
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Leer binario y preparar inserción
 
     $res_stock = $mysqli->execute_query("SELECT cantidad FROM producto WHERE id = ?", [$_POST['id_prod']]);
     $item = $res_stock->fetch_assoc();
 
+    // Verifica si el producto tiene la cantidad solicitada por el cliente
     if ($item && $item['cantidad'] >= $_POST['cant'] && $item['cantidad'] > 0) {
+
+        // Query para obtener el carrito del cliente
         $query = "SELECT id FROM carrito_cliente WHERE idUsuario = ?";
         $id_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
         $id_carrito = $id_carrito->fetch_assoc();
 
+        // Query para obtener la cantidad del producto en el carrito del cliente
         $query = "SELECT cantidad FROM carrito_productos CP, carrito_cliente CC WHERE idProducto = ? AND CC.id = CP.idCarrito AND CC.idUsuario = ?";
         $resultado = $mysqli->execute_query($query, [$_POST['id_prod'], $_SESSION['id']]);
         $resultado = $resultado->fetch_assoc();
 
+        // Lógica para determinar si existe el producto en el carrito
         if(is_null($resultado)){
             $query = "INSERT INTO carrito_productos (idCarrito, idProducto, cantidad) VALUES (?, ?, ?)";
             $mysqli->execute_query($query, [$id_carrito['id'], $_POST['id_prod'], $_POST['cant']]);
         }else{
+            // Lógica para determinar si la cantidad que pide el cliente junto con la que ya se encuentra
+            // en el carrito es menor a la que existe en el almacén
             if($item['cantidad'] >=  $_POST['cant'] + $resultado['cantidad']){
                 $query = "UPDATE carrito_productos SET cantidad = cantidad + ? WHERE idProducto = ?";
                 $mysqli->execute_query($query, [$_POST['cant'], $_POST['id_prod']]);
@@ -81,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Query para obtener la cantidad de productos en el carrito
 $query = "SELECT SUM(cantidad) as Cuenta FROM carrito_productos CP, carrito_cliente CC WHERE CC.idUsuario = ? AND CC.id = CP.idCarrito;";
 if(isset($_SESSION['id'])){
     $prod_carrito = $mysqli->execute_query($query, [$_SESSION['id']]);
@@ -91,8 +103,6 @@ if(isset($_SESSION['id'])){
         $prod_carrito = 0;
     }
 }
-
-
 
 $mysqli->close();
 ?>

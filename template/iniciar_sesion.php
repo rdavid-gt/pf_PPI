@@ -9,13 +9,10 @@ $db = 'proyectoFinal';
 $mysqli = new mysqli($host, $user, $pass, $db);
 if ($mysqli->connect_error) die("Conexión fallida: " . $mysqli->connect_error);
 
-// Mensaje para mostrar al usuario
-$mensaje = '';
-
-// Variables
-// Usuario
+// Credenciales del usuario
 $correo = $password = "";
 
+// Limpieza de las credenciales
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $correo = clean($_POST["mail"]);
     $password = clean($_POST["contra"]);
@@ -31,14 +28,19 @@ function clean($data)
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Query para conseguir el id del usuario 
     $query = "SELECT id, password FROM usuario WHERE email = ?;";
     $result = $mysqli->execute_query($query, [$correo]);
     $result = $result->fetch_assoc();
 
+    // Lógica para verificar si existe el usuario
     if ($result) {
+        // Lógica para verificar la contraseña
         if (password_verify($password, $result['password'])) {
             session_start();
             $_SESSION["id"] = $result['id'];
+
+            // Lógica para definir el tipo de usuario
             if($_SESSION["id"] == 1){
                 header("Location: catalogo.php?msg=login_ok");
                 exit();

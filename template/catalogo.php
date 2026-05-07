@@ -10,6 +10,7 @@ $db = 'proyectoFinal';
 $mysqli = new mysqli($host, $user, $pass, $db);
 if ($mysqli->connect_error) die("Conexión fallida: " . $mysqli->connect_error);
 
+// Conseguir todos los productos del catálogo
 $sql = "SELECT id, nombre, descripcion, f_public, cantidad, compania, plataforma, precio, imagen FROM producto ORDER BY id ASC";
 $resultado = $mysqli->query($sql);
 $productos = [];
@@ -19,6 +20,7 @@ if ($resultado && $resultado->num_rows > 0) {
     }
 }
 
+// Conseguir las imágenes de los productos
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
     $stmt = $mysqli->prepare("SELECT imagen FROM producto WHERE id = ?");
@@ -38,6 +40,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $mysqli->close();
     exit; // Detener ejecución para no enviar HTML
 }
+
+// Verificar si hay sesión iniciada y que es el administrador
 session_start();
 if(!isset($_SESSION['id'])){
     header("Location: inicio.php");
@@ -45,6 +49,7 @@ if(!isset($_SESSION['id'])){
 }
 include "admin.php";
 
+// Actualiza el producto seleccionado
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if(isset($_FILES['imagen']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK){
         $file = $_FILES['imagen'];
