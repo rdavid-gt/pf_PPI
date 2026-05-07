@@ -34,7 +34,6 @@
                         <a href="https://www.facebook.com/UniversidadAnahuac/" class="text-white me-3 fs-5"><i class="bi bi-facebook"></i></a>
                         <a href="https://x.com/anahuac" class="text-white me-3 fs-5"><i class="bi bi-twitter"></i></a>
                         <a href="https://www.instagram.com/uanahuacnorte?igsh=NGRnNXZuYzF6cXYy" class="text-white me-3 fs-5"><i class="bi bi-instagram"></i></a>
-                        <a href="#!" class="text-white fs-5"><i class="bi bi-youtube"></i></a>
                     </li>
                 </ul>
             </div>
