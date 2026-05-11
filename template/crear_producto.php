@@ -167,7 +167,7 @@ include "admin.php"
                                 </div>
                                 <div class="mb-3">
                                     <label for="imagen" class="form-label fw-bold">Selecciona una imagen para mostrar (AVIF, JPG, JPEG o PNG):</label><br>
-                                    <input type="file" name="imagen" id="imagen" accept=".jpg,.jpeg,.png,.avif" required>
+                                    <input type="file" class="form-control" name="imagen" id="imagen" accept=".jpg,.jpeg,.png,.avif" required>
                                 </div>
                                 <div class="d-grid gap-2 mt-4">
                                     <button type="submit" class="btn btn-dark text-white">Registrar producto</button>
