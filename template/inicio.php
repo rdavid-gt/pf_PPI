@@ -232,6 +232,8 @@ $mysqli->close();
                                                     <input style="width: 50px;" type="number" name="cant" id="cant" min="1" max="<?php echo $producto['cantidad']; ?>">
                                                     <button type="submit" class="btn btn-primary">Añadir al carrito</button>
                                                 </form>
+                                            <?php else: ?>
+                                                <p>Para comprar inicie sesión</p>
                                             <?php endif; ?>
                                         </div>
                                     </div>
