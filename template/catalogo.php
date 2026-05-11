@@ -210,7 +210,7 @@ $mysqli->close();
                                                     </div>
                                                     <div class="mb-3">
                                                         <label for="imagen" class="form-label fw-bold">Selecciona una imagen para mostrar (AVIF, JPG, JPEG o PNG):</label><br>
-                                                        <input type="file" name="imagen" id="imagen" accept=".jpg,.jpeg,.png,.avif">
+                                                        <input type="file" class="form-control" name="imagen" id="imagen" accept=".jpg,.jpeg,.png,.avif">
                                                     </div>
                                                 </div>
                                             </div>
