@@ -229,7 +229,7 @@ $mysqli->close();
                                                 <form enctype="multipart/form-data" method="post">
                                                     <input type="hidden" name="id_prod" value="<?php echo $producto['id']; ?>">
                                                     <label for="cant">Cantidad a agregar al carrito: </label>
-                                                    <input style="width: 50px;" type="number" name="cant" id="cant" min="1" max="<?php echo $producto['cantidad']; ?>">
+                                                    <input style="width: 50px;" type="number" name="cant" id="cant" min="1" value="1" max="<?php echo $producto['cantidad']; ?>">
                                                     <button type="submit" class="btn btn-primary">Añadir al carrito</button>
                                                 </form>
                                             <?php else: ?>
